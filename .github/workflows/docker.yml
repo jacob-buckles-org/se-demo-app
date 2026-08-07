@@ -18,7 +18,7 @@ permissions:
 jobs:
   build-backend:
     name: Build backend image
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +35,7 @@ jobs:
 
   build-frontend:
     name: Build frontend image
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -60,7 +60,7 @@ jobs:
   # which is what container caching addresses.
   stack-smoke:
     name: Full-stack smoke (docker compose)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
