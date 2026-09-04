@@ -1,0 +1,90 @@
+name: Full CI
+
+# Deliberately unrealistic: one sequential frontend pipeline that packs
+# several Blacksmith features into a single job so two Actions runs
+# (se-demo-app vs se-demo-app-unmigrated) line up step-for-step for a
+# side-by-side timing walk. Step *names* match the unmigrated twin;
+# `uses:` differ only where a Blacksmith feature requires it.
+#
+# Not a realistic CI shape — preface that on the call. Container caching
+# is demoted to the existing Docker / Integration workflows, where the
+# image pull is something the job actually needs.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Keep sticky disks, actions/cache, and the Docker builder cache warm
+    # between demos. Offset from ci/test/docker crons.
+    - cron: "15 14 * * 1-5"
+
+env:
+  # Higher than ci/test (200) so Unit tests alone land in the multi-minute
+  # range on ubuntu-latest — the wall-clock knob for this demo beat.
+  METRICS_WORKLOAD: "400"
+
+permissions:
+  contents: read
+
+jobs:
+  full-pipeline:
+    name: Full pipeline
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        # dissociate so later Docker build steps see a self-contained tree
+        # (git alternates to the sticky-disk mirror aren't visible inside
+        # the build container).
+        uses: useblacksmith/checkout@v1
+        with:
+          dissociate: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # No cache: here — Restore dependency cache is the colocated-cache beat.
+
+      - name: Restore dependency cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: full-ci-npm-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            full-ci-npm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore browsers
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: full-ci-playwright-${{ runner.os }}
+          path: ~/.cache/ms-playwright
+
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run build
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Set up Docker builder
+        uses: useblacksmith/setup-docker-builder@v1
+
+      - name: Build Docker image
+        uses: useblacksmith/build-push-action@v2
+        with:
+          context: frontend/
+          push: false
+          tags: |
+            ghcr.io/${{ github.repository }}/metrics-dashboard:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/metrics-dashboard:full-ci
