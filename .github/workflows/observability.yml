@@ -1,0 +1,66 @@
+name: Observability
+
+# Feeds the product demo on se-demo-app: Test Analytics flakiness history,
+# runner utilization, Codesmith rightsizing, and failed-run debugging
+# (SSH / VM retention). One deliberately undersized E2E job — the chart
+# render budget in e2e/chart.spec.ts loses the race under CPU contention
+# roughly 1 run in 8.
+#
+# Not on pull_request: scenario PRs must go red only for the planted
+# aggregate regression (see pr-checks.yml), not for this intermittent flake.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Accumulate flakiness + utilization history between demos.
+    - cron: "5 14 * * 1-5"
+
+jobs:
+  e2e:
+    name: Dashboard E2E (Playwright)
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: observability-playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium firefox webkit
+          else
+            npx playwright install --with-deps chromium firefox webkit
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

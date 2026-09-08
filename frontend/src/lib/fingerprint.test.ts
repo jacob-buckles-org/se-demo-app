@@ -23,7 +23,17 @@ describe('fingerprintSession', () => {
 describe('fingerprintBatch', () => {
   it(`fingerprints a ${batchSize}-session sweep without collisions`, () => {
     const tokens = Array.from({ length: batchSize }, (_, i) => `sess-${i}-${i * 2654435761}`)
+    const budgetMs = 250
+    const started = performance.now()
     const result = fingerprintBatch(tokens, 'tenant-sweep')
+    const tookMs = performance.now() - started
+    // Mirrors the backend telemetry WARN so Full CI unit-test logs stay
+    // searchable for the global log-search beat (SEC-114).
+    if (tookMs > budgetMs) {
+      console.warn(
+        `WARN telemetry: fingerprint sweep exceeded budget (SEC-114): ${batchSize} sessions took ${tookMs.toFixed(0)}ms, budget ${budgetMs}ms`,
+      )
+    }
     expect(result.size).toBe(batchSize)
     expect(new Set(result.values()).size).toBe(batchSize)
   })
