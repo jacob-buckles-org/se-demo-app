@@ -29,7 +29,7 @@ export function summarizeByService(points: MetricPoint[]): ServiceSummary[] {
     summaries.push({
       service,
       totalRequests,
-      errorRate: bucket.length === 0 ? 0 : totalErrors / bucket.length,
+      errorRate: totalRequests === 0 ? 0 : totalErrors / totalRequests,
       avgP95LatencyMs: p95Sum / bucket.length,
     })
   }
