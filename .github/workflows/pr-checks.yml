@@ -4,7 +4,7 @@ name: PR Checks
 # unit suite at METRICS_WORKLOAD=1 so a planted aggregate regression goes
 # red in well under a minute — safe to open live on a call.
 #
-# Deliberately separate from Observability (flaky E2E) and Full CI (slow
+# Deliberately separate from Flaky E2E and Full CI (slow
 # feature tour). Autofix should chase the real regression, not a flake.
 
 on:

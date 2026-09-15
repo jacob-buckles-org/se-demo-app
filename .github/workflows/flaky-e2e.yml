@@ -1,10 +1,9 @@
-name: Observability
+name: Flaky E2E
 
-# Feeds the product demo on se-demo-app: Test Analytics flakiness history,
-# runner utilization, Codesmith rightsizing, and failed-run debugging
-# (SSH / VM retention). One deliberately undersized E2E job — the chart
-# render budget in e2e/chart.spec.ts loses the race under CPU contention
-# roughly 1 run in 8.
+# Intentionally flaky Playwright job for the Test Analytics / rightsizing
+# / failed-run debugging demo on se-demo-app. Undersized 2 vCPU runner +
+# tight CHART_RENDER_BUDGET_MS so e2e/chart.spec.ts loses the race under
+# CPU contention.
 #
 # Not on pull_request: scenario PRs must go red only for the planted
 # aggregate regression (see pr-checks.yml), not for this intermittent flake.
@@ -14,13 +13,16 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # Accumulate flakiness + utilization history between demos.
     - cron: "5 14 * * 1-5"
 
 jobs:
   e2e:
-    name: Dashboard E2E (Playwright)
+    name: Playwright (intentional flake)
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    env:
+      # Tight budget only here — Full CI leaves the default (5s) so its
+      # E2E step stays green on both repos.
+      CHART_RENDER_BUDGET_MS: "250"
     defaults:
       run:
         working-directory: frontend
@@ -41,7 +43,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: observability-playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          key: flaky-e2e-playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Install Playwright browsers
         run: |

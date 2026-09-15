@@ -2,15 +2,15 @@ import { expect, test } from '@playwright/test'
 
 // The chart only mounts once the metrics fetch resolves and the hourly
 // rollup has run, so this budget has to cover fetch + aggregate + first
-// paint. Tuned 2026-09-08 after 21 consecutive greens at 400ms on
-// blacksmith-2vcpu — the contended firefox/webkit tail no longer cleared
-// 400ms, so the budget sat entirely above the race. 250ms + a heavier
-// mock payload puts the assertion back inside the contention window
-// (see DEMO_MECHANICS.md §1.1).
-const CHART_RENDER_BUDGET_MS = 250
+// paint.
+//
+// Default is generous so Full CI / Validate stay green. Observability sets
+// CHART_RENDER_BUDGET_MS=250 on the undersized 2 vCPU runner so the
+// contention race is visible for Test Analytics (see DEMO_MECHANICS.md §1).
+const CHART_RENDER_BUDGET_MS = Number(process.env.CHART_RENDER_BUDGET_MS ?? '5000')
 
 // Dense "last 24 hours" payload — more series means more rollup + Recharts
-// work under the same 2 vCPU / 3-browser contention.
+// work under Observability's 2 vCPU / 3-browser contention.
 const services = [
   'ingest-api',
   'query-api',
